@@ -159,3 +159,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 /.python-version
+
+# private keys
+
+/ssh/async/client_host_key
+/ssh/async/client_host_key.pub
+/ssh/async/server_key
+/ssh/async/server_key.pub
+/ssh/async/trusted_client_host_keys
+/ssh/async/trusted_server_keys
