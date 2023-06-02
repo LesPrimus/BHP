@@ -5,25 +5,8 @@ import socket
 import threading
 import time
 
-
-class ICMP(Structure):
-    _fields_ = [
-        ("type", c_ubyte, 8),
-        ("code", c_ubyte, 8),
-        ("header_chk_sum", c_ushort, 16),
-        ("unused", c_ushort, 16),
-        ("next_hop_mtu", c_ushort, 16),
-    ]
-
-    def __new__(cls, socket_buffer=None):
-        return cls.from_buffer_copy(socket_buffer)
-
-    def __init__(self, socket_buffer=None):
-        super().__init__(socket_buffer=socket_buffer)
-
-    def __str__(self):
-        return f"{self.__class__.__name__}" \
-               f"(type={self.type}, code={self.code})"
+SUBNET = "192.168.1.0/24"
+MESSAGE = "PYTHONROCK!"
 
 
 class IP(Structure):
@@ -43,6 +26,9 @@ class IP(Structure):
 
     def __new__(cls, socket_buffer=None):
         return cls.from_buffer_copy(socket_buffer)
+
+    def __init__(self, socket_buffer=None):
+        super().__init__(socket_buffer=socket_buffer)
 
     def __str__(self):
         return f"{self.__class__.__name__}" \
@@ -67,26 +53,64 @@ class IP(Structure):
             return str(self.protocol_num)
 
 
-def sniff(host):
-    socket_protocol = socket.IPPROTO_ICMP
-    sniffer = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket_protocol)
-    sniffer.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-    sniffer.bind((host, 0))
+class ICMP(Structure):
+    _fields_ = [
+        ("type", c_ubyte, 8),
+        ("code", c_ubyte, 8),
+        ("header_chk_sum", c_ushort, 16),
+        ("unused", c_ushort, 16),
+        ("next_hop_mtu", c_ushort, 16),
+    ]
 
-    try:
-        while True:
-            raw_buffer = sniffer.recvfrom(65535)[0]
-            ip_header = IP(socket_buffer=raw_buffer[0:20])
-            print(ip_header)
-            if ip_header.protocol == "ICMP":
-                offset = ip_header.ihl * 4
-                buf = raw_buffer[offset: offset + 8]
-                res = ICMP(buf)
-                print(res)
+    def __new__(cls, socket_buffer=None):
+        return cls.from_buffer_copy(socket_buffer)
 
-    except KeyboardInterrupt:
-        sys.exit()
+    def __init__(self, socket_buffer=None):
+        super().__init__(socket_buffer=socket_buffer)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}" \
+               f"(type={self.type}, code={self.code})"
+
+
+def udp_sender():
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender:
+        for ip in ipaddress.ip_network(SUBNET).hosts():
+            sender.sendto(MESSAGE.encode(), (str(ip), 65212))
+
+
+class Scanner:
+    def __init__(self, host):
+        self.host = host
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+        self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+        self.socket.bind((host, 0))
+
+    def sniff(self):
+        hosts_up = set()
+        try:
+            while True:
+                raw_buffer = self.socket.recvfrom(65535)[0]
+                ip_header = IP(raw_buffer[0:20])
+                if ip_header.protocol == "ICMP":
+                    offset = ip_header.ihl * 4
+                    buf = raw_buffer[offset: offset + 8]
+                    icmp_header = ICMP(buf)
+                    if icmp_header.code == 3 and icmp_header.type == 3:
+                        if ipaddress.ip_address(ip_header.src_address) in ipaddress.IPv4Network(SUBNET):
+                            if raw_buffer[len(raw_buffer) - len(MESSAGE):] == bytes(MESSAGE, 'utf8'):
+                                tgt = str(ip_header.src_address)
+                                if tgt != self.host and tgt not in hosts_up:
+                                    hosts_up.add(str(ip_header.src_address))
+                                    print(f"Host-Up: {tgt}")
+        except KeyboardInterrupt:
+            sys.exit()
 
 
 if __name__ == '__main__':
-    sniff("192.168.1.48")
+    host = "192.168.1.48"
+    s = Scanner(host)
+    time.sleep(5)
+    t = threading.Thread(target=udp_sender)
+    t.start()
+    s.sniff()
