@@ -20,10 +20,14 @@ def gather_paths(path: str,  q: asyncio.Queue):
 async def worker(worker_name, job_queue: asyncio.Queue, results_queue: asyncio.Queue, client: httpx.AsyncClient):
     while not job_queue.empty():
         path = await job_queue.get()
-        res = await client.get(path)
-        if res.status_code == HTTPStatus.OK:
-            print(f"[{worker_name}] -- <{res.url}> --> {res.status_code}")
-            await results_queue.put(res)
+        try:
+            res = await client.get(path)
+        except httpx.TimeoutException:
+            pass
+        else:
+            if res.status_code == HTTPStatus.OK:
+                print(f"[{worker_name}] -- <{res.url}> --> {res.status_code}")
+                await results_queue.put(res)
         job_queue.task_done()
 
 
