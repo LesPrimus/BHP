@@ -168,3 +168,4 @@ cython_debug/
 /ssh/async/server_key.pub
 /ssh/async/trusted_client_host_keys
 /ssh/async/trusted_server_keys
+/bhptrojan/mytoken.txt
