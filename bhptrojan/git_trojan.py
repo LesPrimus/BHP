@@ -71,7 +71,7 @@ class GitImportLoader(Loader):
         self.data = data
 
     def exec_module(self, module):
-        return exec(self.data, module.__dict__)
+        exec(self.data, module.__dict__)
 
 
 class GitImporter(MetaPathFinder):
